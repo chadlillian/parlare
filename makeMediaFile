@@ -1,0 +1,49 @@
+#!/home/chad/anaconda/bin/python
+
+import	os
+from 	pymongo import MongoClient
+import	numpy as np
+import	avClub	as av
+
+def	readDB(database,collection):
+	client	=MongoClient()
+	db		=client[database]
+	col		=db[collection]
+
+	words	=col.find()
+	wordsranked	={}
+	for word in words:
+		wordsranked[word['rank']]	=word
+
+	return	wordsranked
+
+def	makeFile(words,numwords,numrepeats,pauselen,rankmax,outputfilename):
+	a	=av.avClub()
+	if outputfilename[-1]==3:
+		dbkey	='combined'
+		pausefile	='silence.mp3'
+		a.makeAudioPause(pauselen)
+
+	else:
+		dbkey		='video'
+		pausefile	='silence.mp4'
+		a.makeVideoPause(pauselen)
+	hist	=[0]*rankmax
+	mediafiles	=[]
+	for i in range(numwords):
+		k	=int(rankmax*np.random.power(5))
+		#q	=[words[k]['file'][dbkey]]*numrepeats+[pausefile]
+		q	=[words[k]['file'][dbkey]]*numrepeats#+[pausefile]
+		hist[k]	=hist[k]+1
+		mediafiles.extend(q)
+	if os.path.exists(outputfilename):
+		os.remove(outputfilename)
+	if dbkey=='video':
+		a.concatenateVideo(mediafiles,outputfilename)
+	else:
+		a.concatenateAudio(mediafiles,outputfilename)
+	
+collections	=['german_verbs','german_nouns','german_other', 'italian_verbs','italian_nouns','italian_adjectives','italian_other']
+for col in collections:
+	words	=readDB('languages',col)
+	makeFile(words,100,5,3,150,col+'.mp4')

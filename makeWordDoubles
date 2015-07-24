@@ -1,0 +1,102 @@
+#!/home/chad/anaconda/bin/python
+
+import	GoogleTTS
+import	os
+import	shlex
+import	subprocess
+from 	pymongo import MongoClient
+import	glob
+import	avClub	as av
+
+class	txt2media:
+	def	__init__(self,database):
+		client		=MongoClient()
+		self.db		=client[database]
+	
+		self.av		=av.avClub()
+
+	def	dropCol(self,csvfilename):
+		collection	=os.path.basename(csvfilename).split('.')[0]
+		self.db.drop_collection(collection)
+
+		print self.db.collection_names()
+
+	def	readCSVFile(self,filename):
+		lines	=open(filename).readlines()
+		self.words	=[]
+	
+		lng0	=lines[0].split(',')[0].strip()
+		lng1	=lines[0].split(',')[1].strip()
+		for i,line in enumerate(lines[1:]):
+			qline	=line.split(',')
+			doc		={'rank':i,lng0:qline[0].strip(),lng1:qline[1].strip()}
+			self.words.append(doc)
+	
+		self.lng0	=lng0
+	
+	def	makeMP3new(self,filename,database,subdir):
+		self.readCSVFile(filename)
+		collection	=os.path.basename(filename).split('.')[0]
+
+		self.col	=self.db[collection]
+		self.col.remove()
+	
+		subsubdir	=subdir+'/'+collection+'/'
+	
+		if not os.path.isdir(subsubdir):
+			os.makedirs(subsubdir)
+		wordsmade	=glob.glob(subsubdir+'*')
+	
+		for word in self.words:
+			lngwrd	=word[self.lng0].replace(" ","_")
+			outputfilename_lng	=subsubdir+lngwrd+'_'+self.lng0+'.mp3'
+			outputfilename_en	=subsubdir+lngwrd+'_en.mp3'
+			outputfilename		=subsubdir+lngwrd+'.mp3'
+			videofilename		=subsubdir+lngwrd+'.mp4'
+			text				=word[self.lng0]+'\n'+word['en']
+			if outputfilename_lng not in wordsmade:
+				GoogleTTS.audio_extract(input_text=word[self.lng0],args={'language':self.lng0, 'output':outputfilename_lng})
+				GoogleTTS.audio_extract(input_text=word['en'],args={'language':'en', 'output':outputfilename_en})
+				self.av.concatenateAudio([outputfilename_lng,outputfilename_en],outputfilename)
+				self.av.makeTextSoundToVideo(soundfile=outputfilename,text=text,videofile=videofilename)
+	
+			print lngwrd
+			document			=word
+			document['file']	={self.lng0:outputfilename_lng, 'en':outputfilename_en,'combined':outputfilename,'video':videofilename}
+			self.col.insert(document)
+
+		return	collection
+	
+		
+
+def	test():
+	csvfile	='test.csv'
+	
+	q	=txt2media('languages')
+	q.makeMP3new(csvfile,'languages','audio')
+	q.dropCol(csvfile)
+	
+test()
+	
+	
+files	=[\
+'/home/chad/anki/italian_other.csv',\
+'/home/chad/anki/italian_adjectives.csv',\
+'/home/chad/anki/italian_nouns.csv',\
+'/home/chad/anki/italian_verbs.csv'
+]
+
+files	=[
+'/home/chad/anki/german_nouns.csv',\
+'/home/chad/anki/german_verbs.csv',\
+'/home/chad/anki/german_other.csv',\
+'/home/chad/anki/italian_other.csv',\
+'/home/chad/anki/italian_adjectives.csv',\
+'/home/chad/anki/italian_nouns.csv',\
+'/home/chad/anki/italian_verbs.csv'
+]
+
+#q	=txt2media('languages')
+#for f in files:
+#	q.makeMP3new(f,'languages','audio')
+
