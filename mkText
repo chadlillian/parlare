@@ -1,0 +1,6 @@
+#!/bin/bash
+
+ffmpeg -f lavfi -i color=c=blue:s=320x240:d=0.5 -vf \
+drawtext="fontfile=/path/to/font.ttf:fontsize=30: \
+ fontcolor=white:x=(w-text_w)/2:y=(h-text_h-line_h)/2:text='Stack Overflow'" \
+ output.mp4
